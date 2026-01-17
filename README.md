@@ -1,26 +1,37 @@
 # BIM Dynamo Automation
 
-Repositorio de scripts en Dynamo y Python orientados a la automatización de procesos BIM en Autodesk Revit.
+Repository containing Dynamo and Python scripts focused on BIM process automation in Autodesk Revit.
 
-## Objetivo
-Optimizar tareas repetitivas en proyectos BIM estructurales y MEP, reduciendo tiempos de entrega, errores manuales y mejorando la consistencia del modelo.
+This project is aimed at improving productivity, reducing repetitive manual tasks, and increasing data consistency in BIM structural and MEP projects.
 
-## Tecnologías
+## Objectives
+
+- Automate repetitive BIM workflows
+- Improve model data quality and consistency
+- Reduce human errors during documentation and coordination
+- Optimize delivery times in structural and MEP projects
+
+## Technologies
+
 - Autodesk Revit
 - Dynamo
 - Python
-- Navisworks (coordinación)
+- BIM (Structural and MEP)
 
-## Aplicaciones
-- Generación automática de partes de montaje
-- Extracción de información desde modelos BIM
-- Automatización de documentación técnica
-- Soporte a procesos de Steel Framing
+## Repository Structure
 
-## Estado
-Repositorio en desarrollo.  
-Se irán incorporando scripts y ejemplos progresivamente.
+/dynamo  
+Contains Dynamo graphs used for automation inside Revit.
 
-## Autor
-Gonzalo Lazarte Manzotti  
-Arquitecto BIM – Automatización y desarrollo
+ /python  
+Contains Python scripts for advanced automation and data processing.
+
+ /examples  
+Example files, sample workflows, and usage references.
+
+## Notes
+
+All scripts are intended for educational and professional workflow optimization purposes.  
+They can be adapted to different BIM standards and project requirements.
+All scripts are intended for educational and professional workflow optimization purposes.  
+They can be adapted to different BIM standards and project requirements.
