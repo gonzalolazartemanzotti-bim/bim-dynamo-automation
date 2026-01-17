@@ -1,23 +1,23 @@
-# Python Scripts
+# Dynamo Graphs
 
-Python scripts developed for BIM automation workflows in Autodesk Revit.
+Collection of Dynamo graphs developed to automate BIM workflows in Autodesk Revit.
 
-These scripts are mainly focused on improving efficiency, data management, and automation of repetitive modeling and documentation tasks.
+These graphs are focused on reducing manual work, standardizing processes, and improving modeling efficiency in structural and MEP projects.
 
-## Applications
+## Typical Uses
 
-- Model data processing
-- Parameter management
-- Batch operations
-- Automation of repetitive tasks
-- Improvement of productivity and consistency
+- Automatic parameter assignment
+- Model validation
+- Data consistency checks
+- Repetitive modeling automation
+- Support for documentation workflows
 
 ## Requirements
 
 - Autodesk Revit
-- Dynamo (with Python node)
-- Basic knowledge of BIM workflows
+- Dynamo
+- Project templates properly configured
 
 ## Notes
 
-Scripts may require adaptation depending on Revit version, project standards, and template configuration.
+Graphs are intended as base tools and can be customized according to project standards and BIM execution plans.
