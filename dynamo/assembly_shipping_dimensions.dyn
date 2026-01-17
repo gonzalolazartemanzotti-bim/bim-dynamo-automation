@@ -1,0 +1,343 @@
+{
+  "Uuid": "d127a4b3-156e-45a5-a296-b8607eb2638e",
+  "IsCustomNode": false,
+  "Description": "",
+  "Name": "Dimensiones reales de envío de montaje",
+  "ElementResolver": {
+    "ResolutionMap": {}
+  },
+  "Inputs": [],
+  "Outputs": [],
+  "Nodes": [
+    {
+      "ConcreteType": "PythonNodeModels.PythonNode, PythonNodeModels",
+      "Code": "import clr\r\nimport math\r\nfrom System.Collections.Generic import List\r\n\r\n# Cargar API\r\nclr.AddReference('RevitAPI')\r\nfrom Autodesk.Revit.DB import *\r\n\r\nclr.AddReference('RevitServices')\r\nfrom RevitServices.Persistence import DocumentManager\r\n\r\ndoc = DocumentManager.Instance.CurrentDBDocument\r\n\r\n# --- FUNCIÓN CLAVE: OBTENER PUNTOS DE LA GEOMETRÍA ---\r\ndef get_solid_vertices(element):\r\n    vertices = []\r\n    opt = Options()\r\n    opt.DetailLevel = ViewDetailLevel.Fine\r\n    geo_elem = element.get_Geometry(opt)\r\n    \r\n    if geo_elem:\r\n        for geo_obj in geo_elem:\r\n            # Manejar Sólidos Directos\r\n            if isinstance(geo_obj, Solid) and geo_obj.Volume > 0:\r\n                for edge in geo_obj.Edges:\r\n                    vertices.extend([p for p in edge.Tessellate()])\r\n            # Manejar Geometría Anidada (Instancias)\r\n            elif isinstance(geo_obj, GeometryInstance):\r\n                inst_geo = geo_obj.GetInstanceGeometry()\r\n                for inst_obj in inst_geo:\r\n                    if isinstance(inst_obj, Solid) and inst_obj.Volume > 0:\r\n                        for edge in inst_obj.Edges:\r\n                            vertices.extend([p for p in edge.Tessellate()])\r\n    return vertices\r\n\r\n# --- CONFIGURACIÓN ---\r\nF_METROS = 0.3048 # Pies a Metros\r\nassemblies = FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Assemblies).WhereElementIsNotElementType().ToElements()\r\n\r\ndata_export = []\r\n# L = Largo (X local), W = Ancho (Y local), H = Alto (Z local)\r\ndata_export.append([\"Montaje\", \"Largo Total (m)\", \"Ancho Total (m)\", \"Alto Total (m)\", \"Volumen Envío (m3)\"])\r\n\r\nfor assem in assemblies:\r\n    try:\r\n        # 1. Obtener la Transformación del Montaje (Su orientación en el espacio)\r\n        # Esto es vital para medirlo recto y no en diagonal\r\n        trans = assem.GetTransform()\r\n        inverse_trans = trans.Inverse\r\n        \r\n        member_ids = assem.GetMemberIds()\r\n        all_points_local = []\r\n        \r\n        # 2. Recolectar todos los puntos de todas las piezas\r\n        for m_id in member_ids:\r\n            elem = doc.GetElement(m_id)\r\n            if not elem: continue\r\n            \r\n            world_points = get_solid_vertices(elem)\r\n            \r\n            # 3. TRUCO DE MAGIA: Convertir puntos de Mundo a Local\r\n            # Llevamos los puntos al \"universo\" del montaje donde está recto\r\n            for pt in world_points:\r\n                local_pt = inverse_trans.OfPoint(pt)\r\n                all_points_local.append(local_pt)\r\n        \r\n        if all_points_local:\r\n            # 4. Calcular Minimos y Maximos en Local\r\n            xs = [p.X for p in all_points_local]\r\n            ys = [p.Y for p in all_points_local]\r\n            zs = [p.Z for p in all_points_local]\r\n            \r\n            length = (max(xs) - min(xs)) * F_METROS\r\n            width = (max(ys) - min(ys)) * F_METROS\r\n            height = (max(zs) - min(zs)) * F_METROS\r\n            ship_vol = length * width * height\r\n            \r\n            # Redondear para que sea limpio\r\n            # Ordenamos las dimensiones para que Largo sea siempre la mayor (opcional)\r\n            dims = sorted([length, width, height], reverse=True)\r\n            \r\n            data_export.append([\r\n                assem.Name, \r\n                round(dims[0], 3), # Largo Mayor\r\n                round(dims[1], 3), # Ancho/Alto\r\n                round(dims[2], 3), # Espesor/Alto\r\n                round(ship_vol, 3)\r\n            ])\r\n            \r\n    except Exception as e:\r\n        # Si falla, poner ceros\r\n        data_export.append([assem.Name, 0, 0, 0, \"Error: \" + str(e)])\r\n\r\n# SALIDA PARA EXCEL\r\nOUT = data_export",
+      "Engine": "CPython3",
+      "VariableInputPorts": true,
+      "Id": "1db379f51f084f9aa8ebec3dc1478249",
+      "NodeType": "PythonScriptNode",
+      "Inputs": [
+        {
+          "Id": "68e2ef4fdf734b76bef4f8288f74b44f",
+          "Name": "IN[0]",
+          "Description": "Input #0",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "2fa175669a7d465e860f9afa8ccef562",
+          "Name": "OUT",
+          "Description": "Resultado de la secuencia de comandos de Python",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Ejecuta una secuencia de comandos de Python incrustada."
+    },
+    {
+      "ConcreteType": "Dynamo.Graph.Nodes.ZeroTouch.DSFunction, DynamoCore",
+      "Id": "17f5b63c116546fb85ef915619e10c4e",
+      "NodeType": "FunctionNode",
+      "Inputs": [
+        {
+          "Id": "77dd8cd1c48b476a97218efeffa1f90f",
+          "Name": "filePath",
+          "Description": "string",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "2c1eb4fb311041659b4f26c152991652",
+          "Name": "sheetName",
+          "Description": "string",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "169888662f9a455bb665e548accf88f8",
+          "Name": "data",
+          "Description": "var[][]",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "c4f79c1941c04f06ab29e1a101634a9f",
+          "Name": "startRow",
+          "Description": "int\nValor por defecto : 0",
+          "UsingDefaultValue": true,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "ef89c05834324b29aa09b52350d613e0",
+          "Name": "startColumn",
+          "Description": "int\nValor por defecto : 0",
+          "UsingDefaultValue": true,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "222cff115ec342cf89fc7ab1318b9b00",
+          "Name": "overWrite",
+          "Description": "bool\nValor por defecto : false",
+          "UsingDefaultValue": true,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "7a0d2fd50957430291ce3626687b2e9e",
+          "Name": "writeAsString",
+          "Description": "bool\nValor por defecto : false",
+          "UsingDefaultValue": true,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "e488517469634deebcf32f1778a668c7",
+          "Name": "bool",
+          "Description": "bool",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "FunctionSignature": "DSOffice.Data.OpenXMLExportExcel@string,string,var[][],int,int,bool,bool",
+      "Replication": "Auto",
+      "Description": "Data.OpenXMLExportExcel (filePath: string, sheetName: string, data: var[][], startRow: int = 0, startColumn: int = 0, overWrite: bool = false, writeAsString: bool = false): bool"
+    },
+    {
+      "ConcreteType": "CoreNodeModels.Input.StringInput, CoreNodeModels",
+      "SerializedWidth": 0.0,
+      "SerializedHeight": 0.0,
+      "Id": "d5b1a0bd7e33453f8a095f74ade93519",
+      "NodeType": "StringInputNode",
+      "Inputs": [],
+      "Outputs": [
+        {
+          "Id": "9c0b10ca0a534bd39f3c4c73c09751c9",
+          "Name": "",
+          "Description": "String",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Crea una cadena.",
+      "InputValue": "Pesos Montajes"
+    },
+    {
+      "ConcreteType": "CoreNodeModels.Input.Filename, CoreNodeModels",
+      "Id": "2087a32aea8640cfa2606bccf6e903a9",
+      "NodeType": "ExtensionNode",
+      "Inputs": [],
+      "Outputs": [
+        {
+          "Id": "71a21120c7eb4757b4ea9ae11b9d1ba2",
+          "Name": "",
+          "Description": "Ruta de archivo",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Permite seleccionar un archivo del sistema y devuelve su ruta de archivo.",
+      "HintPath": "P:\\00-FV DEVELOPER\\00-Proyectos\\SF-316 Hierro - Berberian\\08-Computos\\01-COMPUTOS REVIT\\Dimensiones reales Montajes.xlsx",
+      "InputValue": "..\\..\\SF-316 Hierro - Berberian\\08-Computos\\01-COMPUTOS REVIT\\Dimensiones reales Montajes.xlsx"
+    },
+    {
+      "ConcreteType": "CoreNodeModels.Watch, CoreNodeModels",
+      "WatchWidth": 200.0,
+      "WatchHeight": 200.0,
+      "Id": "c646158dea5447ceaa01f565dc5cdf6a",
+      "NodeType": "ExtensionNode",
+      "Inputs": [
+        {
+          "Id": "f5c8c5a3ee4f4e3fb715fe4f09d0b6fc",
+          "Name": "",
+          "Description": "Nodo desde el que se mostrará la salida",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "ad3748007ad143129160a17c0d762fcd",
+          "Name": "",
+          "Description": "Salida del nodo",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Muestra la salida de un nodo."
+    }
+  ],
+  "Connectors": [
+    {
+      "Start": "2fa175669a7d465e860f9afa8ccef562",
+      "End": "169888662f9a455bb665e548accf88f8",
+      "Id": "910cb756f9ad43e0b1b4bd997fc88b6c",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "2fa175669a7d465e860f9afa8ccef562",
+      "End": "f5c8c5a3ee4f4e3fb715fe4f09d0b6fc",
+      "Id": "d4b8a7de40c2492baf506c7ae0ebe53a",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "9c0b10ca0a534bd39f3c4c73c09751c9",
+      "End": "2c1eb4fb311041659b4f26c152991652",
+      "Id": "0f5a925d9eed4609a221fb81ed87477b",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "71a21120c7eb4757b4ea9ae11b9d1ba2",
+      "End": "77dd8cd1c48b476a97218efeffa1f90f",
+      "Id": "6823474f827649b2a1ea0fc8abc2cf87",
+      "IsHidden": "False"
+    }
+  ],
+  "Dependencies": [],
+  "NodeLibraryDependencies": [
+    {
+      "Name": "Dimensiones reales Montajes.xlsx",
+      "ReferenceType": "External",
+      "Nodes": [
+        "2087a32aea8640cfa2606bccf6e903a9"
+      ]
+    }
+  ],
+  "EnableLegacyPolyCurveBehavior": true,
+  "Thumbnail": "",
+  "GraphDocumentationURL": null,
+  "ExtensionWorkspaceData": [
+    {
+      "ExtensionGuid": "28992e1d-abb9-417f-8b1b-05e053bee670",
+      "Name": "Propiedades",
+      "Version": "3.6",
+      "Data": {}
+    },
+    {
+      "ExtensionGuid": "DFBD9CC0-DB40-457A-939E-8C8555555A9D",
+      "Name": "Generative Design",
+      "Version": "9.1",
+      "Data": {}
+    }
+  ],
+  "Author": "",
+  "Linting": {
+    "activeLinter": "Ninguno",
+    "activeLinterId": "7b75fb44-43fd-4631-a878-29f4d5d8399a",
+    "warningCount": 0,
+    "errorCount": 0
+  },
+  "Bindings": [],
+  "View": {
+    "Dynamo": {
+      "ScaleFactor": 1.0,
+      "HasRunWithoutCrash": true,
+      "IsVisibleInDynamoLibrary": true,
+      "Version": "3.6.0.9395",
+      "RunType": "Manual",
+      "RunPeriod": "1000"
+    },
+    "Camera": {
+      "Name": "_Vista preliminar en segundo plano",
+      "EyeX": -17.0,
+      "EyeY": 24.0,
+      "EyeZ": 50.0,
+      "LookX": 12.0,
+      "LookY": -13.0,
+      "LookZ": -58.0,
+      "UpX": 0.0,
+      "UpY": 1.0,
+      "UpZ": 0.0
+    },
+    "ConnectorPins": [],
+    "NodeViews": [
+      {
+        "Id": "1db379f51f084f9aa8ebec3dc1478249",
+        "Name": "Python Script",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "ShowGeometry": true,
+        "X": 530.4,
+        "Y": 282.4
+      },
+      {
+        "Id": "17f5b63c116546fb85ef915619e10c4e",
+        "Name": "Data.OpenXMLExportExcel",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "ShowGeometry": true,
+        "X": 972.2910707216543,
+        "Y": 240.58216131411456
+      },
+      {
+        "Id": "d5b1a0bd7e33453f8a095f74ade93519",
+        "Name": "String",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "ShowGeometry": true,
+        "X": 619.668257207254,
+        "Y": 81.14215004210246
+      },
+      {
+        "Id": "2087a32aea8640cfa2606bccf6e903a9",
+        "Name": "File Path",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "ShowGeometry": true,
+        "X": 828.4561953645597,
+        "Y": -30.341075226782948
+      },
+      {
+        "Id": "c646158dea5447ceaa01f565dc5cdf6a",
+        "Name": "Watch",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "ShowGeometry": true,
+        "X": 698.5752961997788,
+        "Y": 490.90216091515924
+      }
+    ],
+    "Annotations": [],
+    "X": 0.41584203392932295,
+    "Y": 150.43092834767833,
+    "Zoom": 0.6313172430975721
+  }
+}
